@@ -2,8 +2,9 @@
 
 import { Delete, Edit, SwapHoriz, SwapVert } from '@suid/icons-material';
 import { ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@suid/material';
-import { createSignal, For, Show } from 'solid-js';
+import { createMemo, createSignal, For, Show } from 'solid-js';
 import { activeDRCItem } from '~/model/drc';
+import { LayerCategory } from '~/model/layerTypes';
 import {
   lambdaToMicrons,
   layout,
@@ -15,6 +16,7 @@ import {
   sortRects,
 } from '~/model/layout';
 import { spiceIdentifierRegexp, spiceIdentifierReservedNames } from '~/model/spiceFile';
+import { metalStepLines } from '~/model/topography';
 import { isLayerVisible, viewerState } from '~/model/viewerState';
 import { domRectFromPoints, type Point2D } from '~/utils/geometry';
 import { ctrlCmdPressed } from '~/utils/keyboard';
@@ -48,6 +50,10 @@ export default function Canvas(props: { size: number }) {
   const handleClose = () => {
     setContextMenu(null);
   };
+
+  const stepLines = createMemo(() =>
+    metalStepLines(layout.rects, (rect) => isLayerVisible(rect.layer)),
+  );
 
   const selectedRect = () => {
     const index = selectedRectIndex();
@@ -281,52 +287,67 @@ export default function Canvas(props: { size: number }) {
             <rect x="0" y="0" width="1000" height="1000" fill="url(#hatch-pattern)" />
           </mask>
         </defs>
-        <For each={layout.rects}>
-          {(rect, index) => {
-            const layer = rectLayer(rect);
-            if (layer == null) {
-              return;
-            }
-
-            return (
-              <Show when={isLayerVisible(layer.name)}>
-                <g
-                  onClick={(event) => {
-                    if (!popMenu()) {
-                      return;
-                    }
-                    setSelectedRectIndex(index);
-                    event.preventDefault();
-                    setContextMenu(
-                      contextMenu() === null
-                        ? {
-                            left: event.clientX + 2,
-                            top: event.clientY,
-                          }
-                        : null,
-                    );
-                  }}
-                  onMouseDown={(e) => {
-                    setPopMenu(true);
-                    if (e.detail > 1) {
-                      // Prevent text selection on double click
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <rect
-                    x={rect.x}
-                    y={rect.y}
-                    height={rect.height}
-                    width={rect.width}
-                    fill={layer.color}
-                    class={styles.rect}
-                    mask={layer.hatched ? 'url(#hatch-mask)' : undefined}
-                  />
-                </g>
+        <For each={[false, true]}>
+          {(viaPass) => (
+            <>
+              {/* Steps in the surface under the metal show up as lines, drawn below the vias */}
+              <Show when={viaPass}>
+                <For each={stepLines()}>
+                  {(line) => (
+                    <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} class={styles.step} />
+                  )}
+                </For>
               </Show>
-            );
-          }}
+              <For each={layout.rects}>
+                {(rect, index) => {
+                  const layer = rectLayer(rect);
+                  // Vias are drawn last, on top of the metal layers that cover them
+                  if (layer == null || (layer.category === LayerCategory.Via) !== viaPass) {
+                    return;
+                  }
+
+                  return (
+                    <Show when={isLayerVisible(layer.name)}>
+                      <g
+                        onClick={(event) => {
+                          if (!popMenu()) {
+                            return;
+                          }
+                          setSelectedRectIndex(index);
+                          event.preventDefault();
+                          setContextMenu(
+                            contextMenu() === null
+                              ? {
+                                  left: event.clientX + 2,
+                                  top: event.clientY,
+                                }
+                              : null,
+                          );
+                        }}
+                        onMouseDown={(e) => {
+                          setPopMenu(true);
+                          if (e.detail > 1) {
+                            // Prevent text selection on double click
+                            e.preventDefault();
+                          }
+                        }}
+                      >
+                        <rect
+                          x={rect.x}
+                          y={rect.y}
+                          height={rect.height}
+                          width={rect.width}
+                          class={viaPass ? styles.via : styles.rect}
+                          fill={viaPass ? undefined : layer.color}
+                          mask={layer.hatched ? 'url(#hatch-mask)' : undefined}
+                        />
+                      </g>
+                    </Show>
+                  );
+                }}
+              </For>
+            </>
+          )}
         </For>
 
         <For each={layout.rects}>

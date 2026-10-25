@@ -3,3 +3,23 @@
 .rect:hover {
   stroke: yellow;
 }
+
+/* Vias are drawn on top of metal as a darker outline, like the dimple they leave in a die shot */
+.via {
+  fill: black;
+  fill-opacity: 0.15;
+  stroke: black;
+  stroke-opacity: 0.6;
+}
+
+.via:hover {
+  stroke: yellow;
+  stroke-opacity: 1;
+}
+
+/* Metal crossing a step in the surface below (well / diffusion edges) */
+.step {
+  stroke: black;
+  stroke-opacity: 0.6;
+  pointer-events: none;
+}
