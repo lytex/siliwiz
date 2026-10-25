@@ -7,6 +7,10 @@ import child from 'child_process';
 const commitHash = child.execSync('git rev-parse --short HEAD').toString();
 
 export default defineConfig({
+  server: {
+    baseURL: process.env.BASE_PATH,
+  },
+
   vite() {
     return {
       define: {

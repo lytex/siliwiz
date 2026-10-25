@@ -2,6 +2,7 @@
 
 import { StartServer, createHandler } from '@solidjs/start/server';
 import { AnalyticsScript } from './components/AnalyticsScript';
+import { withBase } from './config/consts';
 
 export default createHandler(() => (
   <StartServer
@@ -10,7 +11,7 @@ export default createHandler(() => (
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="icon" href="/favicon.ico" />
+          <link rel="icon" href={withBase('/favicon.ico')} />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link
             href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"

@@ -2,6 +2,7 @@
 
 import { AutoFixHigh, Build, Download } from '@suid/icons-material';
 import { Button, FormControlLabel, Paper, Stack, Switch, Typography } from '@suid/material';
+import { withBase } from '~/config/consts';
 import { layout } from '~/model/layout';
 import { toMagic } from '~/model/magic';
 import {
@@ -29,7 +30,7 @@ export default function SpiceCodeView() {
         </Button>
         <Button
           component="a"
-          href="/assets/siliwiz.tech"
+          href={withBase('/assets/siliwiz.tech')}
           target="_blank"
           download="siliwiz.tech"
           startIcon={<Build />}
