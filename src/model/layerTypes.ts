@@ -238,7 +238,7 @@ export const layerTypes: ILayerInfo[] = [
     category: LayerCategory.Passive,
     name: 'metal2',
     magicName: 'metal2',
-    color: 'rgb(125, 200, 250)',
+    color: 'rgb(125, 200, 251)',
     crossY: 10,
     crossHeight: 20, // bit thicker than met1
     description: 'second metal layer used for wiring up the circuit',
