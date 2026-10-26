@@ -63,7 +63,7 @@ export const layerTypes: ILayerInfo[] = [
     name: 'n substrate',
     magicName: 'nmos',
     color: '#c9b28a',
-    hatched: true,
+    hatched: false,
     crossY: 100,
     crossHeight: 30,
     description: 'n doped silicon used to make base layer',
@@ -75,7 +75,7 @@ export const layerTypes: ILayerInfo[] = [
     color: '#e8a0a0',
     crossY: 100,
     crossHeight: 25,
-    hatched: true,
+    hatched: false,
     description: 'p doped used to isolate n diffusion from the n substrate',
   },
   {
