@@ -17,7 +17,7 @@ export const surfaceLevels: Record<string, number> = {
 };
 
 /** Metal layers from bottom to top; each one adds to the surface height of the metals above it */
-const metalLayers = ['metal1', 'metal2'];
+export const metalLayers = ['metal1', 'metal2'];
 
 const epsilon = 1e-3;
 
@@ -28,7 +28,7 @@ export interface ISegment {
   y2: number;
 }
 
-function containsPoint(rect: ILayoutRect, x: number, y: number) {
+export function containsPoint(rect: ILayoutRect, x: number, y: number) {
   return x > rect.x && x < rect.x + rect.width && y > rect.y && y < rect.y + rect.height;
 }
 
@@ -39,7 +39,7 @@ function magicName(rect: ILayoutRect) {
 /**
  * Surface height at the given point: the highest active level, plus one for each lower metal layer present.
  */
-function surfaceHeight(
+export function surfaceHeight(
   activeRects: ILayoutRect[],
   lowerMetals: ILayoutRect[][],
   x: number,

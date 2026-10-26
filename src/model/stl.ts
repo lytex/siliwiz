@@ -2,8 +2,8 @@ import { strToU8, zipSync } from 'three/examples/jsm/libs/fflate.module.js';
 import { Color } from 'three/src/math/Color.js';
 import { downloadFile } from '~/utils/download-file';
 import { layerTypes } from './layerTypes';
-import { layout, rectLayer, rectViaLayer } from './layout';
-import { surfaceLevels } from './topography';
+import { layout, rectLayer, rectViaLayer, type ILayoutRect } from './layout';
+import { containsPoint, metalLayers, surfaceHeight, surfaceLevels } from './topography';
 
 type Vec3 = [number, number, number];
 
@@ -54,10 +54,48 @@ function boxCorners({ min, max }: IBox): Vec3[] {
 /** How much each surface level (p well, then diffusion / tap) is raised above the one below in the 3MF export */
 const surfaceStepHeight = 2;
 
+/** The via layer below each metal layer (same order as `metalLayers`) */
+const metalViaLayers = ['metal1 via', 'metal2 via'];
+
+/** Splits a rect into cells along the edges of all the other rects that cross it */
+function splitRect(rect: ILayoutRect, rects: ILayoutRect[]) {
+  const cuts = (start: number, size: number, edges: number[]) =>
+    Array.from(
+      new Set([start, start + size, ...edges.filter((e) => e > start && e < start + size)]),
+    ).sort((a, b) => a - b);
+  const xs = cuts(
+    rect.x,
+    rect.width,
+    rects.flatMap((r) => [r.x, r.x + r.width]),
+  );
+  const ys = cuts(
+    rect.y,
+    rect.height,
+    rects.flatMap((r) => [r.y, r.y + r.height]),
+  );
+
+  const cells: ILayoutRect[] = [];
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (let j = 0; j < ys.length - 1; j++) {
+      cells.push({
+        ...rect,
+        x: xs[i],
+        y: ys[j],
+        width: xs[i + 1] - xs[i],
+        height: ys[j + 1] - ys[j],
+      });
+    }
+  }
+  return cells;
+}
+
 /**
  * Groups the layout rects by their layer (in the same order as the layer list),
  * using the same color as the 2D canvas view.
- * The top of each active layer is raised by `stepHeight` per surface level, so they stand out from the substrate.
+ *
+ * With a `stepHeight`, the surface topography is modelled too: the top of each active layer is raised
+ * by `stepHeight` per surface level, metal follows the steps of the surface below it (like the step
+ * lines in the 2D view), and dips by `stepHeight` over its vias.
  */
 function collectLayers(stepHeight = 0): IExportLayer[] {
   const result = new Map<string, IExportLayer>();
@@ -65,18 +103,56 @@ function collectLayers(stepHeight = 0): IExportLayer[] {
     result.set(layer.name, { name: layer.name, color: new Color(layer.color), boxes: [] });
   }
 
-  for (const rect of layout.rects) {
+  const rects = layout.rects;
+  const activeRects = rects.filter((r) => surfaceLevels[rectLayer(r)?.magicName ?? ''] != null);
+  const metalsByLayer = metalLayers.map((name) =>
+    rects.filter((r) => rectLayer(r)?.magicName === name),
+  );
+  const viasByLayer = metalViaLayers.map((name) => rects.filter((r) => r.layer === name));
+
+  /** How much metal layer `index` is raised at the given point */
+  const metalOffset = (index: number, x: number, y: number) =>
+    stepHeight * (surfaceHeight(activeRects, metalsByLayer.slice(0, index), x, y) ?? 0);
+  /** How much the top of metal layer `index` dips at the given point */
+  const metalDip = (index: number, x: number, y: number) =>
+    viasByLayer[index].some((r) => containsPoint(r, x, y)) ? stepHeight : 0;
+
+  for (const rect of rects) {
     const layer = rectLayer(rect);
     const viaLayer = rectViaLayer(layout, rect);
     if (!viaLayer || !layer) {
       continue;
     }
 
-    const raise = (surfaceLevels[layer.magicName] ?? 0) * stepHeight;
-    result.get(layer.name)?.boxes.push({
-      min: [rect.x, -(rect.y + rect.height), -viaLayer.crossY - viaLayer.crossHeight],
-      max: [rect.x + rect.width, -rect.y, -viaLayer.crossY + raise],
-    });
+    const bottom = -viaLayer.crossY - viaLayer.crossHeight;
+    const top = -viaLayer.crossY + (surfaceLevels[layer.magicName] ?? 0) * stepHeight;
+    const metalIndex = metalLayers.indexOf(layer.magicName);
+    const viaIndex = metalViaLayers.indexOf(layer.name);
+    const cells =
+      stepHeight && (metalIndex >= 0 || viaIndex >= 0) ? splitRect(rect, rects) : [rect];
+
+    for (const cell of cells) {
+      const x = cell.x + cell.width / 2;
+      const y = cell.y + cell.height / 2;
+      let zMin = bottom;
+      let zMax = top;
+      if (metalIndex >= 0) {
+        const offset = metalOffset(metalIndex, x, y);
+        zMin += offset;
+        zMax += offset - metalDip(metalIndex, x, y);
+      } else if (viaIndex >= 0) {
+        // Vias reach from the (dipped) top of the metal below to the bottom of the metal above
+        if (viaIndex > 0) {
+          zMin += metalOffset(viaIndex - 1, x, y) - metalDip(viaIndex - 1, x, y);
+        }
+        zMax += metalOffset(viaIndex, x, y);
+      }
+
+      result.get(layer.name)?.boxes.push({
+        min: [cell.x, -(cell.y + cell.height), zMin],
+        max: [cell.x + cell.width, -cell.y, zMax],
+      });
+    }
   }
 
   return Array.from(result.values()).filter((layer) => layer.boxes.length > 0);
