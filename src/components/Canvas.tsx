@@ -294,7 +294,13 @@ export default function Canvas(props: { size: number }) {
               <Show when={viaPass}>
                 <For each={stepLines()}>
                   {(line) => (
-                    <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} class={styles.step} />
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      class={line.faint ? styles.faintStep : styles.step}
+                    />
                   )}
                 </For>
               </Show>

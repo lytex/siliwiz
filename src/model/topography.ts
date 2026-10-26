@@ -28,6 +28,11 @@ export interface ISegment {
   y2: number;
 }
 
+export interface IStepLine extends ISegment {
+  /** A diffusion edge inside p well: a shallower step that shows up fainter than the rest */
+  faint: boolean;
+}
+
 export function containsPoint(rect: ILayoutRect, x: number, y: number) {
   return x > rect.x && x < rect.x + rect.width && y > rect.y && y < rect.y + rect.height;
 }
@@ -69,10 +74,10 @@ export function surfaceHeight(
 export function metalStepLines(
   rects: ILayoutRect[],
   includeMetal: (rect: ILayoutRect) => boolean = () => true,
-): ISegment[] {
+): IStepLine[] {
   const activeRects = rects.filter((r) => surfaceLevels[magicName(r)] != null);
   const metalsByLayer = metalLayers.map((name) => rects.filter((r) => magicName(r) === name));
-  const result = new Map<string, ISegment>();
+  const result = new Map<string, IStepLine>();
 
   metalsByLayer.forEach((allMetalRects, metalIndex) => {
     const metalRects = allMetalRects.filter(includeMetal);
@@ -114,9 +119,23 @@ export function metalStepLines(
           continue;
         }
 
+        // Active level on each side, ignoring the lower metals
+        const activeBefore = horizontal
+          ? surfaceHeight(activeRects, [], x, y - epsilon)
+          : surfaceHeight(activeRects, [], x - epsilon, y);
+        const activeAfter = horizontal
+          ? surfaceHeight(activeRects, [], x, y + epsilon)
+          : surfaceHeight(activeRects, [], x + epsilon, y);
+        const faint =
+          activeBefore != null &&
+          activeAfter != null &&
+          Math.min(activeBefore, activeAfter) === surfaceLevels.pwell &&
+          Math.max(activeBefore, activeAfter) > surfaceLevels.pwell &&
+          Math.abs(after - before) === Math.abs(activeAfter - activeBefore);
+
         const segment = horizontal
-          ? { x1: sorted[i], y1: fixed, x2: sorted[i + 1], y2: fixed }
-          : { x1: fixed, y1: sorted[i], x2: fixed, y2: sorted[i + 1] };
+          ? { x1: sorted[i], y1: fixed, x2: sorted[i + 1], y2: fixed, faint }
+          : { x1: fixed, y1: sorted[i], x2: fixed, y2: sorted[i + 1], faint };
         result.set(`${segment.x1},${segment.y1},${segment.x2},${segment.y2}`, segment);
       }
     };
