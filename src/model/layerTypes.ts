@@ -92,7 +92,7 @@ export const layerTypes: ILayerInfo[] = [
     category: LayerCategory.Active,
     name: 'p diffusion',
     magicName: 'pdiffusion',
-    color: '#4f43f0',
+    color: '#0f03b0',
     crossY: 100,
     crossHeight: 15,
     masked: true,
