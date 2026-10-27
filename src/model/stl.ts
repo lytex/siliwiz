@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'three/examples/jsm/libs/fflate.module.js';
 import { Color } from 'three/src/math/Color.js';
 import { downloadFile } from '~/utils/download-file';
-import { layerTypes } from './layerTypes';
+import { LayerCategory, layerTypes } from './layerTypes';
 import { layout, rectLayer, rectViaLayer, type ILayoutRect } from './layout';
 import { containsPoint, metalLayers, surfaceHeight, surfaceLevels } from './topography';
 
@@ -54,6 +54,9 @@ function boxCorners({ min, max }: IBox): Vec3[] {
 /** How much each surface level (p well, then diffusion / tap) is raised above the one below in the 3MF export */
 const surfaceStepHeight = 2;
 
+/** How much the depth of the silicon (active) layers below the surface is scaled in the 3MF export */
+const siliconThicknessScale = 0.4;
+
 /** The via layer below each metal layer (same order as `metalLayers`) */
 const metalViaLayers = ['metal1 via', 'metal2 via'];
 
@@ -96,8 +99,10 @@ function splitRect(rect: ILayoutRect, rects: ILayoutRect[]) {
  * With a `stepHeight`, the surface topography is modelled too: the top of each active layer is raised
  * by `stepHeight` per surface level, metal follows the steps of the surface below it (like the step
  * lines in the 2D view), and dips by `stepHeight` over its vias.
+ *
+ * `siliconScale` scales the depth of the active (silicon) layers below the surface.
  */
-function collectLayers(stepHeight = 0): IExportLayer[] {
+function collectLayers(stepHeight = 0, siliconScale = 1): IExportLayer[] {
   const result = new Map<string, IExportLayer>();
   for (const layer of layerTypes) {
     result.set(layer.name, { name: layer.name, color: new Color(layer.color), boxes: [] });
@@ -124,7 +129,8 @@ function collectLayers(stepHeight = 0): IExportLayer[] {
       continue;
     }
 
-    const bottom = -viaLayer.crossY - viaLayer.crossHeight;
+    const depthScale = layer.category === LayerCategory.Active ? siliconScale : 1;
+    const bottom = -viaLayer.crossY - viaLayer.crossHeight * depthScale;
     const top = -viaLayer.crossY + (surfaceLevels[layer.magicName] ?? 0) * stepHeight;
     const metalIndex = metalLayers.indexOf(layer.magicName);
     const viaIndex = metalViaLayers.indexOf(layer.name);
@@ -215,7 +221,7 @@ function escapeXml(value: string) {
  * (so slicers keep the parts aligned and can assign a filament per layer).
  */
 export function export3MF() {
-  const layers = collectLayers(surfaceStepHeight);
+  const layers = collectLayers(surfaceStepHeight, siliconThicknessScale);
 
   const materials = layers
     .map(
