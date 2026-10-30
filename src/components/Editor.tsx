@@ -6,6 +6,7 @@ import beautify from 'json-beautify';
 import { layout, layoutUndo, loadPreset, setLayout, setSelectedRectIndex } from '~/model/layout';
 import { getSpiceParams } from '~/model/spiceFile';
 import { export3MF, exportSTL } from '~/model/stl';
+import { exportSVG } from '~/model/svg';
 import { downloadFile } from '~/utils/download-file';
 import { openFiles } from '~/utils/files';
 import { tryJsonParse } from '~/utils/json';
@@ -95,6 +96,8 @@ export default function Editor() {
         <Button onClick={exportSTL}>STL</Button>
         &nbsp;
         <Button onClick={export3MF}>3MF</Button>
+        &nbsp;
+        <Button onClick={exportSVG}>SVG</Button>
       </div>
       <div style={{ display: 'flex', 'margin-top': '12px' }}>
         <Canvas size={canvasSize() * 200} />
